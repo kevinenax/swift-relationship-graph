@@ -4,12 +4,12 @@ Bluebird = require 'bluebird'
 child_process = require 'child_process'
 path = require 'path'
 
-module.exports = (json, types, outputFilename) ->
+module.exports = (referenceJson, jsonToGraph, types, subtypes, outputFilename) ->
 
   outputPath = outputFilename ? 'graph.pdf'
   outputPath = path.resolve './', outputPath unless path.isAbsolute outputPath
 
-  dotCode = generateCode json, types
+  dotCode = generateCode referenceJson, jsonToGraph, types, subtypes
 
   return new Bluebird (resolve, reject) ->
 

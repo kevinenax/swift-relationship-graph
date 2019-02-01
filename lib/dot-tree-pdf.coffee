@@ -4,12 +4,12 @@ Bluebird = require 'bluebird'
 child_process = require 'child_process'
 path = require 'path'
 
-module.exports = (json, types, outputFilename) ->
+module.exports = (json, root, outputFilename) ->
 
   outputPath = outputFilename ? 'tree.pdf'
   outputPath = path.resolve './', outputPath unless path.isAbsolute outputPath
 
-  dotCode = generateCode json, types
+  dotCode = generateCode json, root
 
   return new Bluebird (resolve, reject) ->
 

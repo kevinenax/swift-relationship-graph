@@ -42,19 +42,69 @@ module.exports = (json) ->
   else
     parseEntry json
 
+  parseFunctions = (entity) ->
+      entitySubs = entity[Key.Substructure]
+      
+      functions = []
+      
+      
+      
+      FunctionHandlers =
+        "#{DeclarationType.SwiftSubscript}": (f) -> functions.push f
+        "#{DeclarationType.SwiftInstanceMethod}": (f) -> functions.push f
+        "#{DeclarationType.SwiftStaticMethod}": (f) -> functions.push f
+        
+      if _.isArray entitySubs 
+          for structure in entitySubs
+              FunctionHandlers[structure[Key.Kind]]? structure
+          
+      return functions
+          
+  parseVariables = (entity) ->
+      entitySubs = entity[Key.Substructure]
+      
+      variables = []
+      
+      VariableHandlers =
+        "#{DeclarationType.SwiftStaticMethod}": (f) -> variables.push f
+        "#{DeclarationType.SwiftStaticVariable}": (f) -> variables.push f
+        "#{DeclarationType.SwiftInstanceVariable}": (f) -> variables.push f
+        
+      if _.isArray entitySubs 
+          for structure in entitySubs
+              VariableHandlers[structure[Key.Kind]]? structure
+          
+      return variables
+          
+
   parseEntity = (entity, type) ->
 
     TypeHandlers =
-      "#{DeclarationType.SwiftProtocol}": (n, p) -> protocolsAndParents[n] = p
-      "#{DeclarationType.SwiftStruct}": (n, p) -> structsAndParents[n] = p
-      "#{DeclarationType.SwiftClass}": (n, p) -> classesAndParents[n] = p
-      "#{DeclarationType.SwiftExtension}": (n, p) ->
-        if classesAndParents[n]?
-          classesAndParents[n] = _.concat classesAndParents[n], p
-        if structsAndParents[n]?
-          structsAndParents[n] = _.concat structsAndParents[n], p
-        if protocolsAndParents[n]?
-          protocolsAndParents[n] = _.concat protocolsAndParents[n], p
+      "#{DeclarationType.SwiftProtocol}": (entity, p) -> 
+          protocol =
+              parents: p
+              functions: parseFunctions entity
+              variables: parseVariables entity
+          protocolsAndParents[entity[Key.Name]] = protocol
+      "#{DeclarationType.SwiftStruct}": (entity, p) -> 
+          struct =
+              parents: p
+              functions: parseFunctions entity
+              variables: parseVariables entity
+          structsAndParents[entity[Key.Name]] = struct
+      "#{DeclarationType.SwiftClass}": (entity, p) -> 
+          klass =
+              parents: p
+              functions: parseFunctions entity
+              variables: parseVariables entity
+          classesAndParents[entity[Key.Name]] = klass
+      "#{DeclarationType.SwiftExtension}": (entity, p) ->
+        if classesAndParents[entity]?
+          classesAndParents[entity] = _.concat classesAndParents[entity], p
+        if structsAndParents[entity]?
+          structsAndParents[entity] = _.concat structsAndParents[entity], p
+        if protocolsAndParents[entity]?
+          protocolsAndParents[entity] = _.concat protocolsAndParents[entity], p
       #"#{DeclarationType.ObjCProtocol}": (n, p) -> protocolsAndParents[n] = p
       #"#{DeclarationType.ObjCStruct}": (n, p) -> structsAndParents[n] = p
       #"#{DeclarationType.ObjCClass}": (n, p) -> classesAndParents[n] = p
@@ -73,7 +123,7 @@ module.exports = (json) ->
 
       parents = []
 
-    TypeHandlers[type]? entity[Key.Name], parents
+    TypeHandlers[type]? entity, parents
 
   for protocol in protocols
     parseEntity protocol, DeclarationType.SwiftProtocol

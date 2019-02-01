@@ -17,9 +17,19 @@ dotGraphPath = path.resolve __dirname, '../assets/dotGraph.template'
 dotGraphSource = fs.readFileSync dotGraphPath
 dotGraphTemplate = handlebars.compile dotGraphSource.toString()
 
-module.exports = (json, types) ->
+module.exports = (referenceJson, jsonToGraph, types, subtypes) ->
 
-  analysis = analyzer json
+  referenceAnalysis = analyzer referenceJson
+  
+  referenceGraph =
+    protocols:
+      data: referenceAnalysis.protocols
+    structs:
+      data: referenceAnalysis.structs
+    classes:
+      data: referenceAnalysis.classes
+  
+  analysis = analyzer jsonToGraph
 
   graph =
     protocols:
@@ -41,20 +51,27 @@ module.exports = (json, types) ->
 
   if _.isString types
     types = types.split ','
-
+  
   if _.isArray types
     keys = Object.keys graph
     for key in keys
       if key not in types
         graph[key].data = []
+        
+  for type in graph
+      for entity in type
+          graph[type][entity] = referenceGraph[type][entity]
+      
 
   entities = {}
   for type, typeInfo of graph
-    for name, parents of typeInfo.data
+    for name, type of typeInfo.data
       entities[name] =
         color: typeInfo.color
         shape: typeInfo.shape
-        parents: parents
+        parents: type.parents
+        functions: type.functions
+        variables: type.variables
         cluster: Object.keys(entities).length
 
   for entity, info of entities
@@ -64,6 +81,8 @@ module.exports = (json, types) ->
           color: Constants.Style.System.Color
           shape: Constants.Style.System.Shape
           parents: []
+          functions: []
+          variables: []
       originalCluster = entities[parent].cluster
       for other_entity, other_info of entities
         if entities[other_entity].cluster is originalCluster
@@ -76,8 +95,22 @@ module.exports = (json, types) ->
         number: info.cluster
         entities: []
         relationships: []
+    label  = entity
+    if info.functions.length > 0 || info.variables.length > 0
+        label = "{" + entity
+        if info.variables.length > 0
+            label += "|"
+            for variable in info.variables
+                label += '\\n' + variable[Constants.Key.Definition]
+        if info.functions.length > 0
+            label += "|"
+            for func in info.functions
+                label += '\\n' + func[Constants.Key.Definition]
+        label += "}"
+        
     clusters[info.cluster].entities.push {
       name: entity
+      label: label
       color: info.color
       shape: info.shape
     }
